@@ -15,7 +15,8 @@ Python-based Model Context Protocol demo that exposes resources, tools, and prom
 ## Setup
 ```bash
 python -m venv .venv
-.venv\Scripts\activate            # PowerShell
+.venv\Scripts\activate            # PowerShell or,
+source .venv/bin/activate         # for bash
 pip install -r requirements.txt
 ```
 
@@ -42,7 +43,7 @@ Visit `http://127.0.0.1:8000/` to open the frontend.
 ### Google Gemini Setup
 ```powershell
 $env:LLM_PROVIDER = "gemini"
-$env:GEMINI_API_KEY = "<your-gemini-api-key>"
+$env:GEMINI_API_KEY = "<your-gemini-api-key>" # Free API key can be used also.
 # Optional model override
 $env:GEMINI_MODEL = "gemini-1.5-pro"
 uvicorn app.main:app --reload
@@ -56,6 +57,18 @@ GEMINI_API_KEY=your-key-here
 GEMINI_MODEL=gemini-2.0-flash
 ```
 Restart the server after editing `.env`.
+
+### Mock Mode (No External Calls)
+Enable mock responses to simulate LLM interactions locally:
+```powershell
+$env:MOCK_MODE = "1"
+uvicorn app.main:app --reload
+```
+or via `.env`:
+```
+MOCK_MODE=1
+```
+With mock mode active (or whenever no valid API key is present), the backend returns deterministic echo-style responses while still exercising all MCP endpoints and frontend flows.
 
 ## Frontend Walkthrough
 1. Load the page to view the available MCP resources, tools, and prompts.
