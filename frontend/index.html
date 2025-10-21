@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MCP Demo Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f7f7f7;
+        }
+
+        header {
+            background-color: #1f2933;
+            color: #fff;
+            padding: 1rem 2rem;
+        }
+
+        main {
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        section {
+            background: #fff;
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 1.15rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        textarea,
+        input,
+        select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        button {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 0.6rem 1.2rem;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        button:disabled {
+            background: #94a3b8;
+            cursor: default;
+        }
+
+        .response {
+            white-space: pre-wrap;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: Consolas, monospace;
+        }
+
+        .stacked {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .tool-argument {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        @media (max-width: 960px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>MCP Demo Client</h1>
+</header>
+
+<main>
+    <section>
+        <h2>Send Chat Request</h2>
+        <div class="stacked">
+            <label for="message">Message</label>
+            <textarea id="message" placeholder="Ask the LLM something..."></textarea>
+
+            <label for="prompt-select">Prompt (optional)</label>
+            <select id="prompt-select">
+                <option value="">None</option>
+            </select>
+            <div id="prompt-inputs"></div>
+
+            <div>
+                <h3>Include Resources</h3>
+                <div id="resource-options"></div>
+            </div>
+
+            <div>
+                <h3>Invoke Tools (optional)</h3>
+                <div id="tool-options"></div>
+            </div>
+
+            <button id="send-btn">Send to LLM</button>
+        </div>
+
+        <h2>LLM Response</h2>
+        <div id="response" class="response">Awaiting request...</div>
+    </section>
+
+    <section>
+        <h2>Capabilities</h2>
+        <div>
+            <h3>Resources</h3>
+            <pre id="resources-list" class="response"></pre>
+        </div>
+        <div>
+            <h3>Tools</h3>
+            <pre id="tools-list" class="response"></pre>
+        </div>
+        <div>
+            <h3>Prompts</h3>
+            <pre id="prompts-list" class="response"></pre>
+        </div>
+    </section>
+</main>
+
+<script>
+    const state = {
+        resources: [],
+        tools: [],
+        prompts: [],
+    };
+
+    async function loadCapabilities() {
+        try {
+            const [resourcesRes, toolsRes, promptsRes] = await Promise.all([
+                fetch('/mcp/resources'),
+                fetch('/mcp/tools'),
+                fetch('/mcp/prompts'),
+            ]);
+
+            state.resources = await resourcesRes.json();
+            state.tools = await toolsRes.json();
+            state.prompts = await promptsRes.json();
+
+            renderResources();
+            renderTools();
+            renderPrompts();
+            renderCapabilityPanels();
+        } catch (error) {
+            document.getElementById('response').textContent = `Failed to load MCP capabilities: ${error}`;
+        }
+    }
+
+    function renderCapabilityPanels() {
+        document.getElementById('resources-list').textContent = JSON.stringify(state.resources, null, 2);
+        document.getElementById('tools-list').textContent = JSON.stringify(state.tools, null, 2);
+        document.getElementById('prompts-list').textContent = JSON.stringify(state.prompts, null, 2);
+    }
+
+    function renderResources() {
+        const container = document.getElementById('resource-options');
+        container.innerHTML = '';
+        state.resources.forEach((resource) => {
+            const wrapper = document.createElement('label');
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = resource.id;
+            wrapper.appendChild(checkbox);
+            wrapper.append(` ${resource.title} (${resource.id})`);
+            container.appendChild(wrapper);
+        });
+    }
+
+    function renderTools() {
+        const container = document.getElementById('tool-options');
+        container.innerHTML = '';
+        state.tools.forEach((tool) => {
+            const wrapper = document.createElement('div');
+            wrapper.style.marginBottom = '1rem';
+
+            const heading = document.createElement('strong');
+            heading.textContent = `${tool.name}`;
+
+            const description = document.createElement('div');
+            description.textContent = tool.description;
+
+            wrapper.appendChild(heading);
+            wrapper.appendChild(description);
+
+            if (tool.arguments && tool.arguments.length > 0) {
+                tool.arguments.forEach((arg) => {
+                    const argWrapper = document.createElement('div');
+                    argWrapper.className = 'tool-argument';
+
+                    const label = document.createElement('label');
+                    label.textContent = `${arg.name} (${arg.type})`;
+
+                    const input = document.createElement('input');
+                    input.placeholder = arg.description;
+                    input.dataset.toolName = tool.name;
+                    input.dataset.argName = arg.name;
+
+                    argWrapper.appendChild(label);
+                    argWrapper.appendChild(input);
+                    wrapper.appendChild(argWrapper);
+                });
+            } else {
+                const note = document.createElement('div');
+                note.textContent = 'No arguments required.';
+                wrapper.appendChild(note);
+            }
+
+            container.appendChild(wrapper);
+        });
+    }
+
+    function renderPrompts() {
+        const select = document.getElementById('prompt-select');
+        select.innerHTML = '<option value="">None</option>';
+        state.prompts.forEach((prompt) => {
+            const option = document.createElement('option');
+            option.value = prompt.name;
+            option.textContent = prompt.name;
+            select.appendChild(option);
+        });
+    }
+
+    function renderPromptInputs(promptName) {
+        const container = document.getElementById('prompt-inputs');
+        container.innerHTML = '';
+        if (!promptName) {
+            return;
+        }
+        const prompt = state.prompts.find((p) => p.name === promptName);
+        if (!prompt) return;
+
+        prompt.input_variables.forEach((variable) => {
+            const label = document.createElement('label');
+            label.textContent = `${variable}`;
+
+            const input = document.createElement('textarea');
+            input.placeholder = `Value for ${variable}`;
+            input.dataset.promptVar = variable;
+
+            container.appendChild(label);
+            container.appendChild(input);
+        });
+    }
+
+    function gatherSelectedResources() {
+        const checkboxes = document.querySelectorAll('#resource-options input[type="checkbox"]');
+        return Array.from(checkboxes)
+            .filter((box) => box.checked)
+            .map((box) => box.value);
+    }
+
+    function gatherToolCalls() {
+        const inputs = document.querySelectorAll('#tool-options input[data-tool-name]');
+        const grouped = {};
+        inputs.forEach((input) => {
+            const value = input.value.trim();
+            if (!value) return;
+            const toolName = input.dataset.toolName;
+            if (!grouped[toolName]) {
+                grouped[toolName] = {};
+            }
+            grouped[toolName][input.dataset.argName] = value;
+        });
+
+        return Object.entries(grouped).map(([toolName, args]) => ({
+            tool_name: toolName,
+            arguments: args,
+        }));
+    }
+
+    function gatherPromptInputs(promptName) {
+        if (!promptName) return {};
+        const inputs = document.querySelectorAll('#prompt-inputs [data-prompt-var]');
+        const payload = {};
+        inputs.forEach((input) => {
+            payload[input.dataset.promptVar] = input.value.trim();
+        });
+        return payload;
+    }
+
+    async function sendChatRequest() {
+        const message = document.getElementById('message').value.trim();
+        if (!message) {
+            alert('Please enter a message before sending.');
+            return;
+        }
+
+        const promptName = document.getElementById('prompt-select').value;
+        const requestPayload = {
+            message,
+            context_resources: gatherSelectedResources(),
+            tool_calls: gatherToolCalls(),
+            prompt_name: promptName || null,
+            prompt_inputs: gatherPromptInputs(promptName),
+        };
+
+        const responseElement = document.getElementById('response');
+        const button = document.getElementById('send-btn');
+        button.disabled = true;
+        responseElement.textContent = 'Sending request...';
+
+        try {
+            const response = await fetch('/mcp/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestPayload),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'Unknown error');
+            }
+            responseElement.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+            responseElement.textContent = `Request failed: ${error}`;
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    document.getElementById('prompt-select').addEventListener('change', (event) => {
+        renderPromptInputs(event.target.value);
+    });
+
+    document.getElementById('send-btn').addEventListener('click', sendChatRequest);
+
+    loadCapabilities();
+</script>
+</body>
+</html>
