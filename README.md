@@ -4,13 +4,13 @@ Python-based Model Context Protocol demo that exposes resources, tools, and prom
 
 ## Features
 - **FastAPI** backend with MCP-compliant REST endpoints for resources, tools, and prompts.
-- **LLM bridge** that uses OpenAI's Chat Completions API when credentials are available, and a deterministic mock fallback otherwise.
+- **LLM bridge** supporting OpenAI Chat Completions and Google Gemini plus a deterministic mock fallback.
 - **Mock mode** (`MOCK_MODE=1`) keeps the server fully runnable without external dependencies.
 - **Minimal frontend** (`/`) for exploring MCP capabilities and sending chat requests.
 
 ## Requirements
 - Python 3.10 or later
-- Optional: OpenAI API key for live LLM interaction (`OPENAI_API_KEY`)
+- Optional: OpenAI API key (`OPENAI_API_KEY`) or Google Gemini API key (`GEMINI_API_KEY`) for live LLM interaction
 
 ## Setup
 ```bash
@@ -28,8 +28,8 @@ Environment variables (all optional):
 | `LLM_PROVIDER`    | `openai`, `gemini`, or any other value to defer to mock        | `openai`            |
 | `OPENAI_API_KEY`  | API key for OpenAI Chat Completions                            | _unset_ (mock mode) |
 | `OPENAI_MODEL`    | Chat completion model name                                     | `gpt-3.5-turbo`     |
-| `GEMINI_API_KEY`  | Google Gemini API Studio key                                   | _unset_ (mock mode) |
-| `GEMINI_MODEL`    | Gemini model (`gemini-1.5-flash`, `gemini-pro`, etc.)          | `gemini-1.5-flash`  |
+| `GEMINI_API_KEY`  | Google Gemini Generative Language key                          | _unset_ (mock mode) |
+| `GEMINI_MODEL`    | Gemini model (`gemini-2.0-flash`, `gemini-1.5-pro`, etc.)      | `gemini-1.5-flash`  |
 
 If the chosen provider is missing credentials or `MOCK_MODE` is true, the mock LLM is used automatically. Variables can be set in your shell or inside a `.env` file at the repository root (auto-loaded via `python-dotenv`).
 
@@ -48,6 +48,14 @@ $env:GEMINI_MODEL = "gemini-1.5-pro"
 uvicorn app.main:app --reload
 ```
 Gemini support uses the Google AI Studio REST endpoint, so no extra Python dependency is required.
+
+Or, add the values to `.env`:
+```
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your-key-here
+GEMINI_MODEL=gemini-2.0-flash
+```
+Restart the server after editing `.env`.
 
 ## Frontend Walkthrough
 1. Load the page to view the available MCP resources, tools, and prompts.
